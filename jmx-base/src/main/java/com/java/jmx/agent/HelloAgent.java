@@ -1,17 +1,23 @@
 package com.java.jmx.agent;
 
 import com.java.jmx.mbean.Hello;
+import com.java.jmx.mbean.HelloModelMBean;
+import com.java.jmx.mbean.XiaoSi;
+import com.java.jmx.notification.HelloListener;
 import com.sun.jdmk.comm.HtmlAdaptorServer;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import javax.management.InstanceAlreadyExistsException;
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanException;
 import javax.management.MBeanRegistrationException;
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.NotCompliantMBeanException;
 import javax.management.ObjectName;
+import javax.management.modelmbean.InvalidTargetObjectTypeException;
 import javax.management.remote.JMXConnectorServer;
 import javax.management.remote.JMXConnectorServerFactory;
 import javax.management.remote.JMXServiceURL;
@@ -20,7 +26,7 @@ public class HelloAgent {
 
   public static void main(String[] args) throws MalformedObjectNameException,
       NotCompliantMBeanException, InstanceAlreadyExistsException,
-      MBeanRegistrationException, IOException {
+      MBeanException, IOException, InstanceNotFoundException, InvalidTargetObjectTypeException {
     // 下面这种方式不能再JConsole中使用
     // MBeanServer server = MBeanServerFactory.createMBeanServer();
     // 首先建立一个MBeanServer,MBeanServer用来管理我们的MBean,通常是通过MBeanServer来获取我们MBean的信息，间接
@@ -32,7 +38,9 @@ public class HelloAgent {
     //为MBean（下面的new Hello()）创建ObjectName实例
     ObjectName helloName = new ObjectName(domainName + ":name=HelloWorld");
     // 将new Hello()这个对象注册到MBeanServer上去
-    mbs.registerMBean(new Hello(), helloName);
+//    Hello hello = new Hello();
+    HelloModelMBean hello = new HelloModelMBean();
+    mbs.registerMBean(hello, helloName);
 
     // Distributed Layer, 提供了一个HtmlAdaptor。支持Http访问协议，并且有一个不错的HTML界面，这里的Hello就是用这个作为远端管理的界面
     // 事实上HtmlAdaptor是一个简单的HttpServer，它将Http请求转换为JMX Agent的请求
@@ -40,6 +48,11 @@ public class HelloAgent {
     HtmlAdaptorServer adapter = new HtmlAdaptorServer();
     adapter.start();
     mbs.registerMBean(adapter, adapterName);
+
+    //注册XiaoSi MBean到MBeanServer上，且为Xiaosi MBean增加通知监听器HelloListener
+    XiaoSi xs = new XiaoSi();
+    mbs.registerMBean(xs, new ObjectName("MyMBean:name=xiaosi"));
+    xs.addNotificationListener(new HelloListener(), null, hello);
 
     int rmiPort = 1099;
     Registry registry = LocateRegistry.createRegistry(rmiPort);
